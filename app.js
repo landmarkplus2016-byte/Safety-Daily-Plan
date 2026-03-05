@@ -57,17 +57,49 @@ async function loadListsData() {
     LIST_SUB_CONTRACTORS = []; LIST_SITE_TYPES = []; LIST_PROJECTS = [];
     engineerRefMap = {}; driverRefMap = {};
 
-    // Row 0 is the header; data starts at index 1
+    // ── Resolve column indices from header row ────────────────────────────────
+    const headers = rows[0] ? rows[0].map(h => String(h || '').trim()) : [];
+
+    function findCol(name, occurrence) {
+      let count = 0;
+      for (let i = 0; i < headers.length; i++) {
+        if (headers[i] === name) {
+          count++;
+          if (count === occurrence) return i;
+        }
+      }
+      return -1;
+    }
+
+    const colEngineerRef  = findCol('Refnum',         1);
+    const colEngineer     = findCol('Site Engineer',   1);
+    const colEngPhone     = findCol('Phone',           1);
+    const colContact      = findCol('Contact Person',  1);
+    const colContactPhone = findCol('Phone',           2);
+    const colSubCon       = findCol('Sub-Contractor',  1);
+    const colSiteType     = findCol('Site Type',       1);
+    const colProject      = findCol('Project Name',    1);
+    const colDriverRef    = findCol('Refnum',          2);
+    const colDriver       = findCol('Driver Name',     1);
+    const colPlate        = findCol('Car Plate No.',   1);
+
+    console.log('[DailyPlan] Column indices —',
+      'EngRef:', colEngineerRef, '| Engineer:', colEngineer, '| EngPhone:', colEngPhone,
+      '| Contact:', colContact, '| ContactPhone:', colContactPhone,
+      '| SubCon:', colSubCon, '| SiteType:', colSiteType, '| Project:', colProject,
+      '| DrvRef:', colDriverRef, '| Driver:', colDriver, '| Plate:', colPlate);
+
+    // Data starts at row index 1
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i];
 
-      // Col 0 (A): Engineer Refnum, Col 1 (B): Site Engineer name, Col 2 (C): Phone
-      const engRefRaw  = r[0];
-      const engRefNum  = (engRefRaw !== null && engRefRaw !== undefined && String(engRefRaw).trim() !== '')
-        ? String(engRefRaw).trim() : null;
-      const teamName   = String(r[1] || '').trim();
+      // Engineer
+      const teamName = colEngineer >= 0 ? String(r[colEngineer] || '').trim() : '';
       if (teamName) {
-        const raw = r[2];
+        const engRefRaw = colEngineerRef >= 0 ? r[colEngineerRef] : '';
+        const engRefNum = (engRefRaw !== null && engRefRaw !== undefined && String(engRefRaw).trim() !== '')
+          ? String(engRefRaw).trim() : null;
+        const raw = colEngPhone >= 0 ? r[colEngPhone] : '';
         // Numeric Egyptian mobile: 10 digits stored without leading 0
         const mob = (typeof raw === 'number')
           ? '0' + String(raw)
@@ -76,29 +108,32 @@ async function loadListsData() {
         if (engRefNum) engineerRefMap[engRefNum] = { name: teamName, mob };
       }
 
-      // Col 4: Contact Person, Col 5: Phone
-      const contactName = String(r[4] || '').trim();
-      if (contactName) CONTACTS.push({ name: contactName, mob: String(r[5] || '').trim() });
+      // Contact Person
+      const contactName = colContact >= 0 ? String(r[colContact] || '').trim() : '';
+      if (contactName) {
+        const mob = colContactPhone >= 0 ? String(r[colContactPhone] || '').trim() : '';
+        CONTACTS.push({ name: contactName, mob });
+      }
 
-      // Col 7: Sub-Contractor
-      const sub = String(r[7] || '').trim();
+      // Sub-Contractor
+      const sub = colSubCon >= 0 ? String(r[colSubCon] || '').trim() : '';
       if (sub && !LIST_SUB_CONTRACTORS.includes(sub)) LIST_SUB_CONTRACTORS.push(sub);
 
-      // Col 8: Site Type
-      const stype = String(r[8] || '').trim();
+      // Site Type
+      const stype = colSiteType >= 0 ? String(r[colSiteType] || '').trim() : '';
       if (stype && !LIST_SITE_TYPES.includes(stype)) LIST_SITE_TYPES.push(stype);
 
-      // Col 9: Project Name
-      const proj = String(r[9] || '').trim();
+      // Project Name
+      const proj = colProject >= 0 ? String(r[colProject] || '').trim() : '';
       if (proj && !LIST_PROJECTS.includes(proj)) LIST_PROJECTS.push(proj);
 
-      // Col 13 (N): Driver Refnum, Col 14 (O): Driver Name, Col 15 (P): Car Plate No.
-      const drvRefRaw  = r[13];
-      const drvRefNum  = (drvRefRaw !== null && drvRefRaw !== undefined && String(drvRefRaw).trim() !== '')
-        ? String(drvRefRaw).trim() : null;
-      const driverName = String(r[14] || '').trim();
+      // Driver
+      const driverName = colDriver >= 0 ? String(r[colDriver] || '').trim() : '';
       if (driverName) {
-        const plate = String(r[15] || '').trim();
+        const drvRefRaw = colDriverRef >= 0 ? r[colDriverRef] : '';
+        const drvRefNum = (drvRefRaw !== null && drvRefRaw !== undefined && String(drvRefRaw).trim() !== '')
+          ? String(drvRefRaw).trim() : null;
+        const plate = colPlate >= 0 ? String(r[colPlate] || '').trim() : '';
         CARS.push({ refnum: drvRefNum, name: driverName, plate });
         if (drvRefNum) driverRefMap[drvRefNum] = { name: driverName, plate };
       }
