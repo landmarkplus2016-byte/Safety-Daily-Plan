@@ -1,6 +1,8 @@
 // ── DYNAMIC DATA (loaded from data/lists.xlsx) ────────────────────────────────
 let TEAM = [], CONTACTS = [], CARS = [];
 let LIST_SITE_TYPES = [], LIST_PROJECTS = [], LIST_SUB_CONTRACTORS = [];
+// Refnum lookup maps — keyed by refnum string (may be numeric-looking strings)
+let engineerRefMap = {}, driverRefMap = {};
 
 // Populate the three shared datalists from the loaded arrays
 function populateDatalists() {
@@ -50,23 +52,28 @@ async function loadListsData() {
     });
     console.log('[DailyPlan] Rows parsed:', rows.length);
 
-    // Reset arrays
+    // Reset arrays and ref maps
     TEAM = []; CONTACTS = []; CARS = [];
     LIST_SUB_CONTRACTORS = []; LIST_SITE_TYPES = []; LIST_PROJECTS = [];
+    engineerRefMap = {}; driverRefMap = {};
 
     // Row 0 is the header; data starts at index 1
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i];
 
-      // Col 0: Site Engineer name, Col 1: Phone (may be stored as a number)
-      const teamName = String(r[0] || '').trim();
+      // Col 0 (A): Engineer Refnum, Col 1 (B): Site Engineer name, Col 2 (C): Phone
+      const engRefRaw  = r[0];
+      const engRefNum  = (engRefRaw !== null && engRefRaw !== undefined && String(engRefRaw).trim() !== '')
+        ? String(engRefRaw).trim() : null;
+      const teamName   = String(r[1] || '').trim();
       if (teamName) {
-        const raw = r[1];
+        const raw = r[2];
         // Numeric Egyptian mobile: 10 digits stored without leading 0
         const mob = (typeof raw === 'number')
           ? '0' + String(raw)
           : String(raw || '').trim();
-        TEAM.push({ name: teamName, mob });
+        TEAM.push({ refnum: engRefNum, name: teamName, mob });
+        if (engRefNum) engineerRefMap[engRefNum] = { name: teamName, mob };
       }
 
       // Col 4: Contact Person, Col 5: Phone
@@ -85,9 +92,16 @@ async function loadListsData() {
       const proj = String(r[9] || '').trim();
       if (proj && !LIST_PROJECTS.includes(proj)) LIST_PROJECTS.push(proj);
 
-      // Col 11: Driver Name, Col 12: Car Plate No.
-      const driverName = String(r[11] || '').trim();
-      if (driverName) CARS.push({ name: driverName, plate: String(r[12] || '').trim() });
+      // Col 13 (N): Driver Refnum, Col 14 (O): Driver Name, Col 15 (P): Car Plate No.
+      const drvRefRaw  = r[13];
+      const drvRefNum  = (drvRefRaw !== null && drvRefRaw !== undefined && String(drvRefRaw).trim() !== '')
+        ? String(drvRefRaw).trim() : null;
+      const driverName = String(r[14] || '').trim();
+      if (driverName) {
+        const plate = String(r[15] || '').trim();
+        CARS.push({ refnum: drvRefNum, name: driverName, plate });
+        if (drvRefNum) driverRefMap[drvRefNum] = { name: driverName, plate };
+      }
     }
 
     console.log('[DailyPlan] Loaded — TEAM:', TEAM.length,
@@ -404,9 +418,11 @@ document.getElementById('sites-container').addEventListener('input', function(e)
     else if (!inp.value){ mobField.value = ''; }
 
     // When Site Engineer is chosen, mirror the same name + mobile into Site Supervisor
+    // and auto-fill Driver Name + Car Plate via refnum lookup
     if (inp.name === 'engineerName') {
       const block = inp.closest('.site-block');
       if (block) {
+        // Mirror into supervisor
         const supName = block.querySelector('[name="supervisorName"]');
         const supMob  = block.querySelector('[name="supervisorMob"]');
         if (match) {
@@ -415,6 +431,22 @@ document.getElementById('sites-container').addEventListener('input', function(e)
         } else if (!inp.value) {
           if (supName) supName.value = '';
           if (supMob)  supMob.value  = '';
+        }
+
+        // Auto-fill driver via refnum — only when the engineer has a refnum
+        const refnum      = match ? match.refnum : null;
+        const driverField = block.querySelector('[name="driverName"]');
+        const plateField  = block.querySelector('[name="carPlate"]');
+        if (driverField && plateField) {
+          if (refnum && driverRefMap[refnum]) {
+            driverField.value = driverRefMap[refnum].name;
+            plateField.value  = driverRefMap[refnum].plate;
+          } else if (!inp.value) {
+            // Engineer field cleared — clear driver too
+            driverField.value = '';
+            plateField.value  = '';
+          }
+          // If engineer has no refnum or no matching driver: leave fields as-is
         }
       }
     }
