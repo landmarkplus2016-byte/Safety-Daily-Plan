@@ -1,6 +1,8 @@
 // ── DYNAMIC DATA (loaded from data/lists.xlsx) ────────────────────────────────
 let TEAM = [], CONTACTS = [], CARS = [];
 let LIST_SITE_TYPES = [], LIST_PROJECTS = [], LIST_SUB_CONTRACTORS = [];
+// Refnum lookup maps — keyed by refnum string (may be numeric-looking strings)
+let engineerRefMap = {}, driverRefMap = {};
 
 // Populate the three shared datalists from the loaded arrays
 function populateDatalists() {
@@ -50,44 +52,91 @@ async function loadListsData() {
     });
     console.log('[DailyPlan] Rows parsed:', rows.length);
 
-    // Reset arrays
+    // Reset arrays and ref maps
     TEAM = []; CONTACTS = []; CARS = [];
     LIST_SUB_CONTRACTORS = []; LIST_SITE_TYPES = []; LIST_PROJECTS = [];
+    engineerRefMap = {}; driverRefMap = {};
 
-    // Row 0 is the header; data starts at index 1
+    // ── Resolve column indices from header row ────────────────────────────────
+    const headers = rows[0] ? rows[0].map(h => String(h || '').trim()) : [];
+
+    function findCol(name, occurrence) {
+      let count = 0;
+      for (let i = 0; i < headers.length; i++) {
+        if (headers[i] === name) {
+          count++;
+          if (count === occurrence) return i;
+        }
+      }
+      return -1;
+    }
+
+    const colEngineerRef  = findCol('Refnum',         1);
+    const colEngineer     = findCol('Site Engineer',   1);
+    const colEngPhone     = findCol('Phone',           1);
+    const colContact      = findCol('Contact Person',  1);
+    const colContactPhone = findCol('Phone',           2);
+    const colSubCon       = findCol('Sub-Contractor',  1);
+    const colSiteType     = findCol('Site Type',       1);
+    const colProject      = findCol('Project Name',    1);
+    const colDriverRef    = findCol('Refnum',          2);
+    const colDriver       = findCol('Driver Name',     1);
+    const colPlate        = findCol('Car Plate No.',   1);
+
+    console.log('[DailyPlan] Column indices —',
+      'EngRef:', colEngineerRef, '| Engineer:', colEngineer, '| EngPhone:', colEngPhone,
+      '| Contact:', colContact, '| ContactPhone:', colContactPhone,
+      '| SubCon:', colSubCon, '| SiteType:', colSiteType, '| Project:', colProject,
+      '| DrvRef:', colDriverRef, '| Driver:', colDriver, '| Plate:', colPlate);
+
+    // Data starts at row index 1
     for (let i = 1; i < rows.length; i++) {
       const r = rows[i];
 
-      // Col 0: Site Engineer name, Col 1: Phone (may be stored as a number)
-      const teamName = String(r[0] || '').trim();
+      // Engineer
+      const teamName = colEngineer >= 0 ? String(r[colEngineer] || '').trim() : '';
       if (teamName) {
-        const raw = r[1];
+        const engRefRaw = colEngineerRef >= 0 ? r[colEngineerRef] : '';
+        const engRefNum = (engRefRaw !== null && engRefRaw !== undefined && String(engRefRaw).trim() !== '')
+          ? String(engRefRaw).trim() : null;
+        const raw = colEngPhone >= 0 ? r[colEngPhone] : '';
         // Numeric Egyptian mobile: 10 digits stored without leading 0
         const mob = (typeof raw === 'number')
           ? '0' + String(raw)
           : String(raw || '').trim();
-        TEAM.push({ name: teamName, mob });
+        TEAM.push({ refnum: engRefNum, name: teamName, mob });
+        if (engRefNum) engineerRefMap[engRefNum] = { name: teamName, mob };
       }
 
-      // Col 4: Contact Person, Col 5: Phone
-      const contactName = String(r[4] || '').trim();
-      if (contactName) CONTACTS.push({ name: contactName, mob: String(r[5] || '').trim() });
+      // Contact Person
+      const contactName = colContact >= 0 ? String(r[colContact] || '').trim() : '';
+      if (contactName) {
+        const mob = colContactPhone >= 0 ? String(r[colContactPhone] || '').trim() : '';
+        CONTACTS.push({ name: contactName, mob });
+      }
 
-      // Col 7: Sub-Contractor
-      const sub = String(r[7] || '').trim();
+      // Sub-Contractor
+      const sub = colSubCon >= 0 ? String(r[colSubCon] || '').trim() : '';
       if (sub && !LIST_SUB_CONTRACTORS.includes(sub)) LIST_SUB_CONTRACTORS.push(sub);
 
-      // Col 8: Site Type
-      const stype = String(r[8] || '').trim();
+      // Site Type
+      const stype = colSiteType >= 0 ? String(r[colSiteType] || '').trim() : '';
       if (stype && !LIST_SITE_TYPES.includes(stype)) LIST_SITE_TYPES.push(stype);
 
-      // Col 9: Project Name
-      const proj = String(r[9] || '').trim();
+      // Project Name
+      const proj = colProject >= 0 ? String(r[colProject] || '').trim() : '';
       if (proj && !LIST_PROJECTS.includes(proj)) LIST_PROJECTS.push(proj);
 
-      // Col 11: Driver Name, Col 12: Car Plate No.
-      const driverName = String(r[11] || '').trim();
-      if (driverName) CARS.push({ name: driverName, plate: String(r[12] || '').trim() });
+      // Driver
+      const driverName = colDriver >= 0 ? String(r[colDriver] || '').trim() : '';
+      if (driverName) {
+        const drvRefRaw = colDriverRef >= 0 ? r[colDriverRef] : '';
+        const drvRefNum = (drvRefRaw !== null && drvRefRaw !== undefined && String(drvRefRaw).trim() !== '')
+          ? String(drvRefRaw).trim() : null;
+        const plate = colPlate >= 0 ? String(r[colPlate] || '').trim() : '';
+        CARS.push({ refnum: drvRefNum, name: driverName, plate });
+        if (drvRefNum) driverRefMap[drvRefNum] = { name: driverName, plate };
+      }
     }
 
     console.log('[DailyPlan] Loaded — TEAM:', TEAM.length,
@@ -281,12 +330,18 @@ function addSite() {
 }
 
 function removeSite(btn) {
-  const block  = getSiteBlock(btn);
+  const block = getSiteBlock(btn);
   if (document.querySelectorAll('.site-block').length <= 1) return;
-  block.style.transition = 'opacity 0.2s, transform 0.2s';
-  block.style.opacity    = '0';
-  block.style.transform  = 'translateY(-8px)';
-  setTimeout(() => { block.remove(); updateSiteUI(); }, 220);
+  showConfirm(
+    'Remove this site from the plan? This cannot be undone.',
+    'Remove',
+    () => {
+      block.style.transition = 'opacity 0.2s, transform 0.2s';
+      block.style.opacity    = '0';
+      block.style.transform  = 'translateY(-8px)';
+      setTimeout(() => { block.remove(); updateSiteUI(); }, 220);
+    }
+  );
 }
 
 // ── SITE ID AUTO-FILL ────────────────────────────────────────────────────────
@@ -398,9 +453,11 @@ document.getElementById('sites-container').addEventListener('input', function(e)
     else if (!inp.value){ mobField.value = ''; }
 
     // When Site Engineer is chosen, mirror the same name + mobile into Site Supervisor
+    // and auto-fill Driver Name + Car Plate via refnum lookup
     if (inp.name === 'engineerName') {
       const block = inp.closest('.site-block');
       if (block) {
+        // Mirror into supervisor
         const supName = block.querySelector('[name="supervisorName"]');
         const supMob  = block.querySelector('[name="supervisorMob"]');
         if (match) {
@@ -409,6 +466,22 @@ document.getElementById('sites-container').addEventListener('input', function(e)
         } else if (!inp.value) {
           if (supName) supName.value = '';
           if (supMob)  supMob.value  = '';
+        }
+
+        // Auto-fill driver via refnum — only when the engineer has a refnum
+        const refnum      = match ? match.refnum : null;
+        const driverField = block.querySelector('[name="driverName"]');
+        const plateField  = block.querySelector('[name="carPlate"]');
+        if (driverField && plateField) {
+          if (refnum && driverRefMap[refnum]) {
+            driverField.value = driverRefMap[refnum].name;
+            plateField.value  = driverRefMap[refnum].plate;
+          } else if (!inp.value) {
+            // Engineer field cleared — clear driver too
+            driverField.value = '';
+            plateField.value  = '';
+          }
+          // If engineer has no refnum or no matching driver: leave fields as-is
         }
       }
     }
@@ -761,13 +834,17 @@ async function buildExcelBlob(plan) {
     const redFill   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFF0000' } };
     const greenFill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF92D050' } };
     const origSite  = plan._original ? plan._original[siteIdx] : null;
+    const isNewSite = plan._original != null && siteIdx >= plan._original.length;
 
     for (let c = 1; c <= 29; c++) {
       const cell = dr.getCell(c);
       cell.font      = dataStyle.font;
       cell.alignment = dataStyle.alignment;
       cell.border    = dataStyle.border;
-      if (e.siteStatus === 'Update') {
+      if (isNewSite && c === 1) {
+        // New site added during an update — highlight Site ID green
+        cell.fill = greenFill;
+      } else if (e.siteStatus === 'Update') {
         if (c === 1) {
           // Site ID always highlighted
           cell.fill = greenFill;

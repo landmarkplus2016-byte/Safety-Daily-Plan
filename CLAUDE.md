@@ -23,6 +23,7 @@ styles.css        All CSS — design system, components, overlays
 app.js            All application JS + PWA SW registration
 sites-data.js     SITES lookup table { siteId: [area, address, lat, lon] }
 data/lists.xlsx   Single source of truth for all dropdown/datalist data
+data/banner.jpg   Page banner image (replaces on GitHub → auto-refreshes via network-first SW)
 service-worker.js PWA offline caching (versioned cache strategy)
 manifest.json     PWA manifest
 icon-192.png      PWA icon
@@ -44,10 +45,12 @@ Design system via `:root` CSS custom properties. Vodafone red `#E8192C` is the b
 Key elements:
 - `<div id="lists-loading">` — full-screen spinner shown while `data/lists.xlsx` is fetched; replaced with error card on failure
 - `<header class="header">` — sticky red header with logo, date badge, and ⚙️ Settings button
+- `<img class="page-banner">` — banner image loaded from `data/banner.jpg` (network-first; replace the file on GitHub to update immediately)
 - `<template id="site-block-template">` — cloneable site entry unit (the core UI component)
 - `<form id="planForm">` — dynamically populated with cloned template instances
 - `#entries-section` — renders saved plans from localStorage
 - `#settingsPanel` — Settings modal (coordinator + engineer defaults)
+- `#confirmModal` — shared confirmation dialog for destructive actions (delete entry, clear all, remove site)
 - `#emailModal` — email composition modal
 - `#toast` — floating notification
 - `<datalist id="teamNames">` — engineer/supervisor name suggestions (populated from lists.xlsx)
@@ -56,10 +59,11 @@ Key elements:
 
 ### app.js — functional areas
 - **Dynamic data loading:** `loadListsData()` — fetches `data/lists.xlsx` via SheetJS on startup, populates `TEAM`, `CONTACTS`, `CARS`, `LIST_SITE_TYPES`, `LIST_PROJECTS`, `LIST_SUB_CONTRACTORS`; calls `populateDatalists()` and `applyDropdownOptions(block)` on all existing blocks; hides loading overlay on success
-- **Site block lifecycle:** `createSiteBlock()`, `addSite()`, `removeSite()`, `updateSiteUI()`; `createSiteBlock()` calls `applyDropdownOptions()` and `applyDefaultContacts()` on every new block
+- **Site block lifecycle:** `createSiteBlock()`, `addSite()`, `removeSite()`, `updateSiteUI()`; `createSiteBlock()` calls `applyDropdownOptions()` and `applyDefaultContacts()` on every new block; `removeSite()` shows a confirmation dialog before removing
 - **Dropdown helpers:** `applyDropdownOptions(block)` — fills siteType, projectName, subContractor selects from loaded lists; `populateDatalists()` — fills the three shared datalists
 - **Settings:** `openSettings()` / `closeSettings()` / `saveCoordinator()` / `saveEngineer()` — manage default coordinator and engineer stored in localStorage; `applyDefaultContacts(block)` — pre-fills contactName/contactMob and supervisorName/supervisorMob on new blocks from saved defaults
 - **UI interactions:** `toggleBlock()` (accordion), `toggleRisk()` (risk checkboxes), `setToggle()` (permission toggle), `refreshSummary()` (collapsed state pills)
+- **Confirmation dialog:** `showConfirm(message, okLabel, onOk)` — reusable modal for all destructive actions; wires `#confirmModal` buttons, cleans up listeners after use, closes on backdrop click
 - **Site ID autocomplete:** `showSiteAc()` / `hideSiteAc()` — case-insensitive prefix match against `SITES`; selecting triggers `lookupSiteId()` to auto-fill area, address, lat/lon
 - **Auto-fill on input:** engineer/supervisor name → mobile (from `TEAM`), contact name → mobile (from `CONTACTS`), driver name → plate (from `CARS`)
 - **Persistence:** `getEntries()` / `saveEntries()` using localStorage key `dailyPlanEntries_v2`
@@ -113,10 +117,11 @@ Plans are stored in `localStorage['dailyPlanEntries_v2']` as JSON. Each plan has
 Versioned cache strategy. Bump `CACHE_NAME` timestamp on every deploy:
 ```js
 const CACHE_VERSION = 'v1';
-const CACHE_NAME    = `daily-plan-${CACHE_VERSION}-20260303120000`;
+const CACHE_NAME    = `daily-plan-${CACHE_VERSION}-20260304120000`;
 //                                                  ↑ change this on each deploy
 ```
 - `index.html` / bare `/` → **network-first** (always get latest on page load)
+- `data/*` (lists.xlsx, banner.jpg, …) → **network-first** (always fetch fresh; fall back to cache if offline)
 - All other same-origin assets → **cache-first + background revalidate**
 - CDN assets → **network-first, fall back to cache**
 - `clients.claim()` inside the `waitUntil` chain so new SW takes effect immediately
@@ -124,6 +129,8 @@ const CACHE_NAME    = `daily-plan-${CACHE_VERSION}-20260303120000`;
 ## Asset Embedding
 
 `LMP Big Logo.jpg` is embedded as a base64 data URI directly in `index.html` (`class="page-logo"`) so the logo works on mobile without an extra HTTP request.
+
+`data/banner.jpg` is **not** embedded — it is fetched at runtime via an `<img>` tag and served network-first by the service worker so replacing the file on GitHub is reflected immediately on the next page load.
 
 ## Key Files
 
@@ -134,6 +141,7 @@ const CACHE_NAME    = `daily-plan-${CACHE_VERSION}-20260303120000`;
 | `app.js` | All application logic + PWA SW registration |
 | `sites-data.js` | SITES lookup table (site IDs → area, address, GPS) — auto-generated from `Site Address New.xlsx` |
 | `data/lists.xlsx` | Live data source for all dropdowns and datalists |
+| `data/banner.jpg` | Page banner image — replace to update; fetched network-first |
 | `service-worker.js` | PWA offline caching |
 | `manifest.json` | PWA manifest |
 | `LMP Big Logo.jpg` | Source logo (already embedded in index.html as base64) |
