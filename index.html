@@ -28,21 +28,20 @@
   </div>
 </div>
 
+<!-- ── FIXED BANNER ───────────────────────────────────────────────────────── -->
+<img src="data/banner.jpg" class="page-banner" alt="Site Operations Daily Plan">
+
+<!-- ── RED RIBBON ────────────────────────────────────────────────────────── -->
 <header class="header">
   <div class="header-inner">
-    <div class="header-logo">
-      <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="rgba(255,255,255,0.2)"/><path d="M7 8h14M7 12h10M7 16h12M7 20h8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-      Daily Site Plan
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div class="header-date" id="header-date"></div>
-      <button class="header-settings-btn" onclick="hardRefresh()" title="Refresh App">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      </button>
-      <button class="header-settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
-    </div>
+    <button class="header-settings-btn" onclick="hardRefresh()" title="Refresh App">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
   </div>
 </header>
+
+<!-- ── FAB SETTINGS ───────────────────────────────────────────────────────── -->
+<button class="fab-settings" onclick="openSettings()" title="Settings">⚙️</button>
 
 <!-- ════ SITE BLOCK TEMPLATE ════ -->
 <template id="site-block-template">
@@ -212,8 +211,6 @@
 
 <!-- ════ PAGE ════ -->
 <div class="container">
-  <img src="data/banner.jpg" class="page-banner" alt="Site Operations Daily Plan">
-
   <form id="planForm" autocomplete="off">
 
     <!-- Edit mode banner -->

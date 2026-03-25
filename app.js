@@ -226,8 +226,11 @@ const yyyy    = today.getFullYear();
 const mm      = String(today.getMonth()+1).padStart(2,'0');
 const dd      = String(today.getDate()).padStart(2,'0');
 const todayStr = `${yyyy}-${mm}-${dd}`;
-document.getElementById('header-date').textContent =
-  today.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+
+// ── BANNER COLLAPSE ON SCROLL ─────────────────────────────────────────────────
+window.addEventListener('scroll', function() {
+  document.body.classList.toggle('banner-collapsed', window.scrollY > 20);
+}, { passive: true });
 
 // ── ACCORDION TOGGLE ──────────────────────────────────────────────────────────
 function toggleBlock(headerEl) {
