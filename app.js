@@ -1026,17 +1026,13 @@ function renderEntries() {
 
     return `
     <div class="entry-card">
-      <div class="entry-card-top" onclick="togglePlanCard(this)">
+      <div class="entry-card-top">
         <div class="entry-site-id">
           Daily Plan
           <span class="entry-date-tag">${dateStr}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <div class="entry-badge">${siteCount} site${siteCount>1?'s':''}</div>
-          <div class="entry-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
-        </div>
+        <div class="entry-badge">${siteCount} site${siteCount>1?'s':''}</div>
       </div>
-      <div class="entry-card-body">
       <div class="plan-sites-list">${sitesHtml}</div>
       <div class="entry-actions">
         <button class="btn-ea use" onclick="useAsNewPlan(${plan._id})">
@@ -1060,13 +1056,15 @@ function renderEntries() {
           Delete
         </button>
       </div>
-      </div>
     </div>`;
   }).join('');
 }
 
-function togglePlanCard(headerEl) {
-  headerEl.closest('.entry-card').classList.toggle('collapsed');
+function toggleAllPlans() {
+  const list = document.getElementById('entries-list');
+  const btn  = document.getElementById('togglePlansBtn');
+  const collapsed = list.classList.toggle('plans-collapsed');
+  btn.classList.toggle('rotated', collapsed);
 }
 
 function clearAll() {
