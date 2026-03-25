@@ -11,7 +11,7 @@
 */
 
 const CACHE_VERSION   = 'v1';
-const CACHE_NAME      = `daily-plan-${CACHE_VERSION}-20260325200000`;
+const CACHE_NAME      = `daily-plan-${CACHE_VERSION}-20260325210000`;
 
 // Files to pre-cache on install so the app works offline from the first visit
 const APP_SHELL = [

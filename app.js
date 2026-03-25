@@ -227,6 +227,16 @@ const mm      = String(today.getMonth()+1).padStart(2,'0');
 const dd      = String(today.getDate()).padStart(2,'0');
 const todayStr = `${yyyy}-${mm}-${dd}`;
 
+// ── BANNER HEIGHT TRACKING (natural aspect ratio, any screen size) ────────────
+const _bannerEl = document.querySelector('.page-banner');
+function _setBannerH() {
+  const h = _bannerEl ? (_bannerEl.offsetHeight || 180) : 180;
+  document.documentElement.style.setProperty('--banner-h', h + 'px');
+}
+if (_bannerEl) _bannerEl.addEventListener('load', _setBannerH);
+window.addEventListener('resize', _setBannerH, { passive: true });
+requestAnimationFrame(_setBannerH);
+
 // ── BANNER COLLAPSE ON SCROLL ─────────────────────────────────────────────────
 window.addEventListener('scroll', function() {
   document.body.classList.toggle('banner-collapsed', window.scrollY > 20);
