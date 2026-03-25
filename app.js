@@ -331,7 +331,6 @@ function addSite() {
 
 function removeSite(btn) {
   const block = getSiteBlock(btn);
-  if (document.querySelectorAll('.site-block').length <= 1) return;
   showConfirm(
     'Remove this site from the plan? This cannot be undone.',
     'Remove',
@@ -517,24 +516,28 @@ function updateSiteUI() {
     const badge = block.querySelector('.site-num-badge');
     badge.textContent = `Site ${i + 1}`;
     const removeBtn = block.querySelector('.btn-remove-site');
-    removeBtn.style.display = count > 1 ? 'flex' : 'none';
+    removeBtn.style.display = 'flex';
     block.classList.toggle('site-block-first', i === 0);
   });
-  const submitBtn = document.getElementById('submitBtn');
-  const hint      = document.getElementById('siteCountHint');
-  if (count > 1) {
-    submitBtn.textContent = `💾 Save Plan (${count} Sites)`;
-    hint.textContent = `${count} sites will be saved together as one plan`;
+  const actionArea = document.querySelector('.action-area');
+  const submitBtn  = document.getElementById('submitBtn');
+  const hint       = document.getElementById('siteCountHint');
+  if (count === 0) {
+    if (actionArea) actionArea.style.display = 'none';
   } else {
-    submitBtn.textContent = '💾 Save Daily Plan';
-    hint.textContent = '';
+    if (actionArea) actionArea.style.display = '';
+    if (count > 1) {
+      submitBtn.textContent = `💾 Save Plan (${count} Sites)`;
+      hint.textContent = `${count} sites will be saved together as one plan`;
+    } else {
+      submitBtn.textContent = '💾 Save Daily Plan';
+      hint.textContent = '';
+    }
   }
 }
 
-// Init: create first block, then load dropdown data from data/lists.xlsx
+// Init: start with empty form, then load dropdown data from data/lists.xlsx
 (function() {
-  const first = createSiteBlock(false);
-  document.getElementById('sites-container').appendChild(first);
   updateSiteUI();
   loadListsData();
 })();
@@ -579,9 +582,27 @@ function cancelEdit() {
   document.getElementById('edit-mode-banner').classList.remove('visible');
   const container = document.getElementById('sites-container');
   container.innerHTML = '';
-  const fresh = createSiteBlock(false);
-  container.appendChild(fresh);
   updateSiteUI();
+}
+
+function useAsNewPlan(planId) {
+  const plan = getEntries().find(p => p._id === planId);
+  if (!plan) return;
+  // Cancel any active edit first
+  _editingPlanId = null;
+  _editingOriginal = null;
+  document.getElementById('edit-mode-banner').classList.remove('visible');
+
+  const container = document.getElementById('sites-container');
+  container.innerHTML = '';
+  (plan.sites || [plan]).forEach(siteData => {
+    const block = createSiteBlock(false);
+    container.appendChild(block);
+    populateSiteBlock(block, siteData);
+  });
+  updateSiteUI();
+  document.getElementById('planForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('Plan loaded — edit and save as new', 'info');
 }
 
 function populateSiteBlock(block, data) {
@@ -676,11 +697,9 @@ document.getElementById('planForm').addEventListener('submit', function(e) {
 
   renderEntries();
 
-  // Reset to single empty block
+  // Reset to empty form
   const container = document.getElementById('sites-container');
   container.innerHTML = '';
-  const fresh = createSiteBlock(false);
-  container.appendChild(fresh);
   updateSiteUI();
 });
 
@@ -1013,6 +1032,10 @@ function renderEntries() {
       </div>
       <div class="plan-sites-list">${sitesHtml}</div>
       <div class="entry-actions">
+        <button class="btn-ea use" onclick="useAsNewPlan(${plan._id})">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+          Use as New Plan
+        </button>
         <button class="btn-ea edit" onclick="editPlan(${plan._id})">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Edit
